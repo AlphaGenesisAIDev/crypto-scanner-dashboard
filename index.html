@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alpha Genesis Crypto Scanner — Live Dashboard</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d0d12;
+      --surface:     #16161f;
+      --surface2:    #1e1e2a;
+      --border:      #2a2a3c;
+      --text:        #e2e2f0;
+      --muted:       #7070a0;
+      --high:        #ef4444;
+      --medium:      #f97316;
+      --watch:       #22c55e;
+      --long:        #3b82f6;
+      --short:       #ef4444;
+      --win:         #22c55e;
+      --loss:        #ef4444;
+      --amber:       #f97316;
+      --accent:      #ef4444;
+    }
+
+    html { font-size: 15px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 60px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .brand h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #fff;
+    }
+
+    .brand span {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .header-meta strong { color: var(--text); }
+
+    /* ── Status bar ───────────────────────────────────── */
+    #status-bar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+
+    #live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--watch);
+      animation: livePulse 1.5s infinite;
+    }
+
+    .live-dot.stale { background: var(--amber); animation: none; }
+    .live-dot.error { background: var(--loss);  animation: none; }
+
+    @keyframes livePulse {
+      0%, 100% { opacity: 1;   transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    #fetch-status { color: var(--muted); }
+    #fetch-status.ok     { color: var(--watch); }
+    #fetch-status.stale  { color: var(--amber); }
+    #fetch-status.error  { color: var(--loss);  }
+
+    #refresh-countdown { color: var(--muted); }
+
+    /* ── Main content ─────────────────────────────────── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+
+    /* ── Stat cards row ───────────────────────────────── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .stat-card .label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 4px;
+    }
+
+    .stat-card .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-card .sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── Coming soon banner ───────────────────────────── */
+    .coming-soon-banner {
+      background: linear-gradient(135deg, rgba(239,68,68,.08), rgba(249,115,22,.06));
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: 12px;
+      padding: 40px 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .coming-soon-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .coming-soon-banner h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .coming-soon-banner p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    .coming-soon-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 18px;
+    }
+
+    .cs-tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ── Main results table ───────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-card-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .table-card-header .badge-legend {
+      display: flex;
+      gap: 10px;
+      font-size: 0.72rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table.results {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      min-width: 620px;
+    }
+
+    table.results thead tr {
+      background: var(--surface2);
+    }
+
+    table.results th {
+      padding: 10px 12px;
+      text-align: center;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    table.results th:first-child { text-align: left; }
+
+    table.results td {
+      padding: 11px 12px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    table.results td:first-child {
+      text-align: left;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.03em;
+    }
+
+    table.results tr:hover td { background: var(--surface2); }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #fff;
+    }
+
+    .score-badge.high   { background: var(--high); }
+    .score-badge.medium { background: var(--medium); }
+    .score-badge.watch  { background: #166534; color: #86efac; }
+
+    /* Rating */
+    .rating { font-weight: 700; font-size: 0.8rem; }
+    .rating.high   { color: var(--high); }
+    .rating.medium { color: var(--medium); }
+    .rating.watch  { color: var(--watch); }
+
+    /* Bias */
+    .bias { font-weight: 700; font-size: 0.82rem; }
+    .bias.long  { color: var(--long); }
+    .bias.short { color: var(--short); }
+
+    /* Momentum coloring */
+    .positive { color: var(--win); }
+    .negative { color: var(--loss); }
+    .neutral  { color: var(--muted); }
+
+    /* Sortable column headers */
+    table.results th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    table.results th.sortable:hover { color: var(--text); }
+    table.results th.sortable .sort-arrow {
+      display: inline-block;
+      margin-left: 3px;
+      font-size: 0.6rem;
+      opacity: 0.3;
+      vertical-align: middle;
+    }
+    table.results th.sort-asc  .sort-arrow,
+    table.results th.sort-desc .sort-arrow {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    /* Empty / loading states */
+    .empty-row td {
+      padding: 48px 20px;
+      text-align: center !important;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 20px 16px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
+    }
+
+    /* ── Mobile: card view for results ───────────────── */
+    @media (max-width: 768px) {
+      header { padding: 10px 14px; }
+      .stat-row { grid-template-columns: 1fr 1fr; }
+
+      .table-wrap { overflow-x: visible; }
+
+      table.results, table.results thead, table.results tbody,
+      table.results th, table.results td, table.results tr {
+        display: block;
+      }
+
+      table.results { min-width: unset; }
+
+      table.results thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
+
+      table.results tbody tr {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 10px 0;
+        overflow: hidden;
+        background: var(--surface2);
+      }
+
+      table.results tbody tr:hover td { background: transparent; }
+
+      table.results td:first-child {
+        background: #1a1a2e;
+        padding: 12px 16px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-align: left !important;
+        border-top: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      table.results td:first-child::before { display: none; }
+
+      table.results td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 16px;
+        border-top: 1px solid var(--border);
+        text-align: right !important;
+        white-space: normal;
+      }
+
+      table.results td::before {
+        content: attr(data-label);
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+        margin-right: 12px;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header>
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <div>
+      <h1>Alpha Genesis Crypto Scanner</h1>
+      <span id="scan-label">Loading...</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div><strong id="pairs-scanned">—</strong> pairs scanned</div>
+    <div>Min score: <strong id="min-score">—</strong></div>
+    <div>Updated: <strong id="last-updated">—</strong></div>
+  </div>
+</header>
+
+<!-- ── Status bar ──────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="live-indicator">
+    <div class="live-dot" id="live-dot"></div>
+    <span id="fetch-status">Connecting...</span>
+  </div>
+  <div id="refresh-countdown">Refreshing in <span id="counter">60</span>s</div>
+</div>
+
+<!-- ── Main content ────────────────────────────────────── -->
+<main>
+
+  <!-- Stat cards -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="label">Setups Found</div>
+      <div class="value" id="stat-setups">—</div>
+      <div class="sub">above min score</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">High Conviction</div>
+      <div class="value" id="stat-high" style="color:var(--high)">—</div>
+      <div class="sub">score ≥ 80</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Long Bias</div>
+      <div class="value" id="stat-long" style="color:var(--long)">—</div>
+      <div class="sub">of top setups</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Market Coverage</div>
+      <div class="value" id="stat-coverage" style="color:var(--accent)">24/7</div>
+      <div class="sub">continuous scanning</div>
+    </div>
+  </div>
+
+  <!-- Coming soon banner (hidden when real data arrives) -->
+  <div id="coming-soon" class="coming-soon-banner">
+    <span class="coming-soon-icon">₿</span>
+    <h2>Crypto Scanner — Coming Soon</h2>
+    <p>
+      Momentum and breakout setups across major crypto pairs using the same
+      quantitative scoring engine as the stock scanner. 24/7 market coverage
+      across BTC, ETH, and high-momentum altcoins.
+    </p>
+    <div class="coming-soon-tags">
+      <span class="cs-tag">BTC / ETH</span>
+      <span class="cs-tag">Altcoins</span>
+      <span class="cs-tag">24/7 Scanning</span>
+      <span class="cs-tag">Volume Signals</span>
+      <span class="cs-tag">0–110 pts</span>
+      <span class="cs-tag">Breakout Score</span>
+    </div>
+  </div>
+
+  <!-- Results table (shown when real data arrives) -->
+  <div class="table-card" id="results-card" style="display:none">
+    <div class="table-card-header">
+      <h2>Breakout Setups</h2>
+      <div class="badge-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--high)"></div>HIGH ≥80</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--medium)"></div>MED ≥60</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--watch)"></div>WATCH ≥50</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="results">
+        <thead>
+          <tr>
+            <th class="sortable" data-key="ticker">Pair <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="score">Score <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="rating">Rating <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="bias">Bias <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="price">Price <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="stop_loss">Stop <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="stop_pct">Risk % <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="vol_ratio">Vol Ratio <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="change_24h">24h % <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="bb_width">BB Width <span class="sort-arrow">⇅</span></th>
+            <th class="sortable" data-key="momentum_5d">5D Momo <span class="sort-arrow">⇅</span></th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr class="empty-row">
+            <td colspan="11"><span class="spinner"></span>Loading scan data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer>
+  Alpha Genesis Crypto Scanner &mdash; For informational and educational purposes only.
+  Not financial advice. Always do your own research before making any trading decisions.
+  Past signal performance does not guarantee future results.
+</footer>
+
+<script>
+  const DATA_URL    = './data/latest.json';
+  const REFRESH_SEC = 60;
+
+  let countdown   = REFRESH_SEC;
+  let currentData = [];
+  let sortState   = { key: null, dir: 1 };
+
+  const VOL_TIERS = [
+    { min: 0,   color: 'inherit' },
+    { min: 1.5, color: '#eab308' },
+    { min: 3,   color: '#f97316' },
+    { min: 5,   color: '#ef4444' },
+  ];
+  const CHANGE_TIERS = [
+    { min: 0,  color: 'inherit' },
+    { min: 3,  color: '#eab308' },
+    { min: 8,  color: '#f97316' },
+    { min: 15, color: '#ef4444' },
+  ];
+
+  // ── Fetch & render ──────────────────────────────────────
+  async function fetchData() {
+    const url = `${DATA_URL}?t=${Date.now()}`;
+    try {
+      const res  = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      render(data);
+      setStatus('ok', 'Live');
+    } catch (err) {
+      setStatus('error', `Fetch failed — ${err.message}`);
+    }
+    resetCountdown();
+  }
+
+  // ── Render all sections ─────────────────────────────────
+  function render(data) {
+    const results     = data.results || [];
+    const comingSoon  = data.coming_soon === true || results.length === 0;
+
+    setText('scan-label',    data.scan_label    || (comingSoon ? 'Coming Soon' : '—'));
+    setText('last-updated',  data.updated       || '—');
+    setText('pairs-scanned', data.total_scanned || '—');
+    setText('min-score',     data.min_score     || '—');
+
+    const highCount = results.filter(r => r.score >= 80).length;
+    const longCount = results.filter(r => r.bias  === 'LONG').length;
+    setText('stat-setups', results.length || '—');
+    setText('stat-high',   highCount      || '—');
+    setText('stat-long',   results.length ? `${longCount}/${results.length}` : '—');
+
+    document.getElementById('coming-soon').style.display  = comingSoon ? '' : 'none';
+    document.getElementById('results-card').style.display = comingSoon ? 'none' : '';
+
+    if (!comingSoon) renderTable(results);
+  }
+
+  // ── Main results table ──────────────────────────────────
+  function renderTable(results) {
+    currentData = results;
+    renderSorted();
+  }
+
+  function renderSorted() {
+    const tbody = document.getElementById('results-body');
+    const rows  = sortCurrentData();
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="11">No setups above minimum score in this scan.</td></tr>`;
+      updateSortArrows();
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const scoreClass  = r.score >= 80 ? 'high' : (r.score >= 60 ? 'medium' : 'watch');
+      const biasClass   = r.bias === 'LONG' ? 'long' : 'short';
+      const momoClass   = r.momentum_5d > 0 ? 'positive' : (r.momentum_5d < 0 ? 'negative' : 'neutral');
+      const momoSign    = r.momentum_5d > 0 ? '+' : '';
+      const chgClass    = r.change_24h  > 0 ? 'positive' : (r.change_24h < 0 ? 'negative' : 'neutral');
+      const chgSign     = r.change_24h  > 0 ? '+' : '';
+      const volColor    = heatColor(r.vol_ratio,  VOL_TIERS);
+      const chg24Color  = heatColor(Math.abs(r.change_24h || 0), CHANGE_TIERS);
+      const volBold     = r.vol_ratio >= 1.5 ? '700' : 'inherit';
+
+      return `
+        <tr>
+          <td data-label="Pair">${escHtml(r.ticker)}</td>
+          <td data-label="Score">
+            <span class="score-badge ${scoreClass}">${r.score}/110</span>
+          </td>
+          <td data-label="Rating">
+            <span class="rating ${scoreClass}">${escHtml(r.rating)}</span>
+          </td>
+          <td data-label="Bias">
+            <span class="bias ${biasClass}">${escHtml(r.bias)}</span>
+          </td>
+          <td data-label="Price">$${fmt(r.price)}</td>
+          <td data-label="Stop" style="color:var(--loss);font-weight:700;">$${fmt(r.stop_loss)}</td>
+          <td data-label="Risk %" style="color:var(--amber);">${fmt(r.stop_pct)}%</td>
+          <td data-label="Vol Ratio" style="color:${volColor};font-weight:${volBold};">${fmt(r.vol_ratio)}x</td>
+          <td data-label="24h %" style="color:${chg24Color};" class="${chgClass}">${chgSign}${fmt(r.change_24h)}%</td>
+          <td data-label="BB Width">${fmt(r.bb_width)}%</td>
+          <td data-label="5D Momo" class="${momoClass}">${momoSign}${fmt(r.momentum_5d)}%</td>
+        </tr>`;
+    }).join('');
+
+    updateSortArrows();
+  }
+
+  // ── Sort logic ──────────────────────────────────────────
+  function sortCurrentData() {
+    if (!sortState.key) return currentData.slice();
+    const STRING_KEYS = new Set(['ticker', 'bias', 'rating']);
+    return currentData.slice().sort((a, b) => {
+      const av = a[sortState.key], bv = b[sortState.key];
+      const cmp = STRING_KEYS.has(sortState.key)
+        ? String(av).localeCompare(String(bv))
+        : (parseFloat(av) || 0) - (parseFloat(bv) || 0);
+      return cmp * sortState.dir;
+    });
+  }
+
+  function updateSortArrows() {
+    document.querySelectorAll('table.results th.sortable').forEach(th => {
+      const arrow  = th.querySelector('.sort-arrow');
+      if (!arrow) return;
+      const active = th.dataset.key === sortState.key;
+      th.classList.toggle('sort-asc',  active && sortState.dir ===  1);
+      th.classList.toggle('sort-desc', active && sortState.dir === -1);
+      arrow.textContent = active ? (sortState.dir === 1 ? '▲' : '▼') : '⇅';
+    });
+  }
+
+  function initSortHeaders() {
+    document.querySelectorAll('table.results th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        sortState = (sortState.key === key)
+          ? { key, dir: sortState.dir * -1 }
+          : { key, dir: 1 };
+        renderSorted();
+      });
+    });
+  }
+
+  // ── Status indicator ────────────────────────────────────
+  function setStatus(state, msg) {
+    const dot    = document.getElementById('live-dot');
+    const status = document.getElementById('fetch-status');
+    dot.className    = `live-dot ${state === 'ok' ? '' : state}`;
+    status.className = state === 'ok' ? 'ok' : (state === 'stale' ? 'stale' : 'error');
+    status.textContent = msg;
+  }
+
+  // ── Countdown timer ─────────────────────────────────────
+  function resetCountdown() {
+    countdown = REFRESH_SEC;
+    setText('counter', countdown);
+  }
+
+  function tickCountdown() {
+    if (--countdown <= 0) { countdown = REFRESH_SEC; fetchData(); }
+    setText('counter', countdown);
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function fmt(v) {
+    if (v === null || v === undefined) return '—';
+    const n = parseFloat(v);
+    return isNaN(n) ? '—' : n.toFixed(2);
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function heatColor(v, tiers) {
+    let color = 'inherit';
+    for (const t of tiers) {
+      if (parseFloat(v) >= t.min) color = t.color;
+    }
+    return color;
+  }
+
+  // ── Boot ────────────────────────────────────────────────
+  initSortHeaders();
+  fetchData();
+  setInterval(tickCountdown, 1000);
+</script>
+</body>
+</html>
